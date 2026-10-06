@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Agentic Fulfillment: how the agents are built</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..850&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F2F4F7; --sheet:#FFFFFF; --ink:#151C28; --graphite:#556072; --rule:#D2D8E0; --rule-soft:#E5E9EE;
+  --hero:#121A2B; --hero-2:#1A2440; --hero-ink:#EDF1F8; --hero-dim:#A6B0C3;
+  --agent:#5A3FCF; --agent-wash:#EEEAFB;
+  --human:#D46A12; --human-wash:#FCEEDF;
+  --comp:#0D7470; --comp-wash:#E0F1F0;
+  --guard:#B5302A; --guard-wash:#F9E6E4;
+  --tA:#2E8A4D; --tB:#BF8712; --tC:#B5302A;
+  --font:"Archivo","Helvetica Neue",Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E131B; --sheet:#161D28; --ink:#E6EBF2; --graphite:#9AA5B6; --rule:#2C3644; --rule-soft:#222B37;
+    --hero:#0A0F1A; --hero-2:#141C30;
+    --agent:#A08DF4; --agent-wash:#241E44; --human:#F2A060; --human-wash:#382513;
+    --comp:#4EC3BC; --comp-wash:#113230; --guard:#EF7D73; --guard-wash:#3A1B19;
+    --tA:#5DC380; --tB:#E4B54B; --tC:#EF7D73;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E131B; --sheet:#161D28; --ink:#E6EBF2; --graphite:#9AA5B6; --rule:#2C3644; --rule-soft:#222B37;
+  --hero:#0A0F1A; --hero-2:#141C30;
+  --agent:#A08DF4; --agent-wash:#241E44; --human:#F2A060; --human-wash:#382513;
+  --comp:#4EC3BC; --comp-wash:#113230; --guard:#EF7D73; --guard-wash:#3A1B19;
+  --tA:#5DC380; --tB:#E4B54B; --tC:#EF7D73;
+}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 64px);scroll-behavior:smooth}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font);font-size:15.5px;line-height:1.5}
+a{color:var(--agent)}
+button{font-family:inherit;color:inherit}
+:focus-visible{outline:2.5px solid var(--agent);outline-offset:2px}
+.w{max-width:1280px;margin:0 auto;padding:0 28px}
+.wd{font-variation-settings:"wdth" 72}
+.wn{font-variation-settings:"wdth" 82}
+
+/* Top bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--sheet) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--rule)}
+.bar .w{display:flex;align-items:center;gap:18px;height:56px}
+.brand{font-weight:800;font-variation-settings:"wdth" 70;font-size:17px;white-space:nowrap}
+.brand span{color:var(--agent)}
+.chap{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;flex:1}
+.chap::-webkit-scrollbar{display:none}
+.chap a{color:var(--graphite);text-decoration:none;font-size:13px;padding:6px 10px;border-radius:999px;white-space:nowrap;font-variation-settings:"wdth" 85}
+.chap a.on{background:var(--agent-wash);color:var(--agent);font-weight:650}
+.pbtn{border:1.5px solid var(--ink);background:var(--ink);color:var(--sheet);border-radius:999px;padding:7px 14px;font-size:13px;font-weight:650;cursor:pointer;white-space:nowrap}
+.pbtn[aria-pressed="true"]{background:var(--human);border-color:var(--human);color:#fff}
+
+/* Hero */
+.hero{background:radial-gradient(1200px 500px at 85% -10%,var(--hero-2),transparent 60%),var(--hero);color:var(--hero-ink);padding:64px 0 54px;overflow:hidden}
+.hero .grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:48px;align-items:center}
+.kicker{display:inline-flex;gap:8px;align-items:center;font-size:13px;color:var(--hero-dim);border:1px solid #33405C;border-radius:999px;padding:5px 12px}
+.kicker i{width:8px;height:8px;border-radius:50%;background:var(--human)}
+h1{font-size:clamp(38px,5.4vw,70px);line-height:.98;margin:18px 0 0;font-weight:820;font-variation-settings:"wdth" 64;letter-spacing:-.012em}
+.lede{font-size:18px;color:var(--hero-dim);max-width:52ch;margin:18px 0 0}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:34px;border-top:1px solid #33405C}
+.stats div{padding:14px 14px 0 0}
+.stats b{display:block;font-size:40px;line-height:1;font-weight:800;font-variation-settings:"wdth" 64}
+.stats span{font-size:13px;color:var(--hero-dim);line-height:1.3;display:block;margin-top:6px}
+.orbit{position:relative}
+.orbit svg{width:100%;height:auto;display:block}
+.who{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:12.5px;color:var(--hero-dim)}
+.who i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+
+/* Chapters */
+.ch{padding:72px 0 8px}
+.ch-h{display:grid;grid-template-columns:120px minmax(0,1fr);gap:20px;margin-bottom:26px}
+.ch-n{font-size:64px;line-height:.85;font-weight:820;color:var(--rule);font-variation-settings:"wdth" 62}
+h2{font-size:clamp(26px,3.2vw,38px);line-height:1.04;margin:0;font-weight:800;font-variation-settings:"wdth" 70;max-width:24ch}
+.ch-h p{margin:10px 0 0;color:var(--graphite);max-width:72ch;font-size:16px}
+.aud{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.aud span{font-size:12px;border:1px solid var(--rule);border-radius:999px;padding:2px 9px;color:var(--graphite)}
+.sheet{background:var(--sheet);border:1px solid var(--rule);border-radius:10px}
+
+/* Ladder */
+.ladder{display:grid;grid-template-columns:190px repeat(7,minmax(118px,1fr));min-width:1040px}
+.lad-wrap{overflow-x:auto;padding:6px}
+.lad-col{font-weight:750;font-size:13.5px;padding:12px 10px;font-variation-settings:"wdth" 80;border-bottom:2px solid var(--ink);line-height:1.15}
+.lad-row{padding:14px 14px 14px 0;font-size:13px;font-weight:700;line-height:1.25;border-bottom:1px solid var(--rule-soft);display:flex;flex-direction:column;justify-content:center;gap:4px}
+.lad-row small{font-weight:400;color:var(--graphite)}
+.lad-row.r3{color:var(--human)} 
+.lad-cell{padding:10px 6px;border-bottom:1px solid var(--rule-soft);border-left:1px dashed var(--rule-soft);display:flex;flex-direction:column;gap:5px;justify-content:center}
+.lad-band3{background:linear-gradient(0deg,var(--human-wash),transparent)}
+.pill{font-size:12px;line-height:1.25;border-radius:6px;padding:5px 7px;font-weight:600}
+.pill.a{background:var(--agent-wash);color:var(--agent);border:1px solid color-mix(in srgb,var(--agent) 35%,transparent)}
+.pill.h{background:var(--human);color:#fff}
+.lad-note{display:flex;gap:22px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:var(--graphite)}
+.lad-note b{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:6px}
+.callout{margin-top:18px;border-left:4px solid var(--human);padding:10px 16px;background:var(--sheet);border-radius:0 8px 8px 0;font-size:15px;max-width:90ch}
+
+/* Journey */
+.jr{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
+.track{padding:18px 18px 8px}
+.track svg{width:100%;height:auto;display:block}
+.stepcard{padding:20px 22px;border-top:1px solid var(--rule)}
+.stephead{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.who-b{font-size:12.5px;font-weight:700;border-radius:999px;padding:4px 10px}
+.who-b.a{background:var(--agent-wash);color:var(--agent)}
+.who-b.h{background:var(--human);color:#fff}
+.stepno{font-size:13px;color:var(--graphite)}
+.stepcard h3{font-size:24px;margin:10px 0 6px;font-variation-settings:"wdth" 74;line-height:1.1}
+.stepcard p{margin:0;max-width:70ch}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.chip{font-size:12px;line-height:1.25;border-radius:5px;padding:4px 8px;border:1px solid}
+.chip.c{color:var(--comp);border-color:var(--comp);background:var(--comp-wash)}
+.chip.g{color:var(--guard);border-color:var(--guard);background:var(--guard-wash)}
+.chip.h{color:var(--human);border-color:var(--human);background:var(--human-wash)}
+.ctrls{display:flex;gap:8px;align-items:center;padding:14px 22px;border-top:1px solid var(--rule);flex-wrap:wrap}
+.cb{border:1.5px solid var(--rule);background:var(--sheet);border-radius:8px;padding:7px 14px;font-size:13.5px;font-weight:650;cursor:pointer}
+.cb.pri{background:var(--agent);border-color:var(--agent);color:#fff}
+.dots{display:flex;gap:5px;margin-left:auto;flex-wrap:wrap}
+.dots button{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--rule);background:var(--sheet);font-size:10.5px;cursor:pointer;padding:0}
+.dots button.h{border-color:var(--human)}
+.dots button.on{background:var(--ink);color:var(--sheet);border-color:var(--ink)}
+.side{display:flex;flex-direction:column;gap:14px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:0;overflow:hidden}
+.tile{padding:12px 14px;border-bottom:1px solid var(--rule-soft);border-right:1px solid var(--rule-soft)}
+.tile:nth-child(2n){border-right:none}
+.tile:last-child{grid-column:span 2;border-right:none;border-bottom:none}
+.tile b{display:block;font-size:26px;line-height:1.05;font-weight:800;font-variation-settings:"wdth" 66;transition:color .3s}
+.tile span{font-size:12px;color:var(--graphite)}
+.tile.flash b{color:var(--agent)}
+.tile.hd b{color:var(--human)}
+.ledger{padding:14px 16px;max-height:250px;overflow:auto}
+.ledger h4{margin:0 0 8px;font-size:14px;font-variation-settings:"wdth" 80;display:flex;justify-content:space-between}
+.ledger ol{list-style:none;margin:0;padding:0;font-size:12px;line-height:1.4}
+.ledger li{padding:6px 0;border-top:1px dashed var(--rule);display:grid;grid-template-columns:40px 1fr;gap:6px}
+.ledger li .t{color:var(--graphite)}
+.ledger li.h .m{color:var(--human)}
+.ledger li.new{animation:in .5s ease}
+@keyframes in{from{background:var(--agent-wash)}to{background:transparent}}
+.illus{font-size:12px;color:var(--graphite);margin-top:8px}
+
+/* Architecture */
+.arch{padding:22px;display:grid;gap:10px}
+.layer{display:grid;grid-template-columns:170px minmax(0,1fr);gap:14px;align-items:stretch}
+.layer .ln{font-size:13px;font-weight:750;font-variation-settings:"wdth" 80;display:flex;flex-direction:column;justify-content:center;line-height:1.2}
+.layer .ln small{font-weight:400;color:var(--graphite);margin-top:2px}
+.boxes{display:flex;flex-wrap:wrap;gap:8px}
+.bx{border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.3;border:1.5px solid var(--rule);background:var(--sheet);flex:1 1 104px}
+.bx b{display:block;font-size:13.5px;font-variation-settings:"wdth" 82}
+.bx.ag{border-color:var(--agent);background:var(--agent-wash)}
+.bx.hu{border-color:var(--human);background:var(--human-wash)}
+.bx.cp{border-color:var(--comp);background:var(--comp-wash)}
+.bx.gd{border-color:var(--guard);background:var(--guard-wash)}
+.tenancy{border:2px dashed var(--comp);border-radius:12px;padding:16px;position:relative;display:grid;gap:10px;margin-top:6px}
+.tenancy::before{content:attr(data-label);position:absolute;top:-11px;left:16px;background:var(--sheet);color:var(--comp);font-size:12.5px;font-weight:700;padding:0 8px}
+.arch-notes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
+.arch-notes div{padding:14px 16px;font-size:14px}
+.arch-notes h4{margin:0 0 4px;font-size:15px;font-variation-settings:"wdth" 78}
+
+/* Explorer */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.tab{border:1.5px solid var(--rule);background:var(--sheet);border-radius:999px;padding:7px 13px;font-size:13.5px;font-weight:650;cursor:pointer;display:inline-flex;gap:7px;align-items:center}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--sheet);border-color:var(--ink)}
+.tdot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.exp{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+.ahead{padding:20px 22px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;gap:12px}
+.ahead h3{margin:0;font-size:30px;font-weight:820;font-variation-settings:"wdth" 68;line-height:1.02}
+.ahead p{margin:8px 0 0;font-size:16px;max-width:66ch}
+.badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 11px;font-size:12.5px;font-weight:700;border:1.5px solid currentColor;white-space:nowrap;height:fit-content}
+.spine{list-style:none;margin:0;padding:0}
+.st{display:grid;grid-template-columns:52px 160px minmax(0,1fr);border-bottom:1px solid var(--rule-soft)}
+.st:last-child{border-bottom:none}
+.st .n{display:flex;justify-content:center;padding-top:14px}
+.st .n span{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:800;background:var(--agent-wash);color:var(--agent)}
+.st.g .n span{background:var(--guard-wash);color:var(--guard)}
+.st.h .n span{background:var(--human);color:#fff}
+.st .nm{padding:16px 10px 14px 0;font-weight:750;font-size:14px;font-variation-settings:"wdth" 80;line-height:1.25}
+.st .nm small{display:block;font-weight:400;color:var(--graphite);font-size:12px;margin-top:3px}
+.st .bd{padding:12px 18px 14px 0;font-size:14px}
+ul.t{margin:0;padding-left:18px} ul.t li{margin:2px 0}
+.mem{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.mem div{border:1px solid var(--rule);border-radius:6px;padding:8px 9px;font-size:12.5px;line-height:1.35}
+.mem b{display:block;font-size:12px;color:var(--agent);font-variation-settings:"wdth" 80;margin-bottom:2px}
+.tools{display:flex;flex-wrap:wrap;gap:6px}
+.tool{font-size:12.5px;border:1px solid var(--rule);border-radius:6px;padding:4px 8px;display:inline-flex;gap:6px;align-items:center;font-weight:600;font-variation-settings:"wdth" 82}
+.tool i{font-style:normal;font-size:10.5px;font-weight:800;border-radius:3px;padding:0 4px}
+.tool i.r{color:var(--graphite);border:1px solid var(--graphite)}
+.tool i.w{color:var(--agent);border:1px solid var(--agent)}
+.tool i.gw{color:#fff;background:var(--human)}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.split>div{border-radius:8px;padding:9px 12px;font-size:13.5px}
+.split .au{border:1.5px solid var(--agent);background:var(--agent-wash)}
+.split .hm{border:1.5px solid var(--human);background:var(--human-wash)}
+.split h5{margin:0 0 4px;font-size:13px}
+.aside{display:flex;flex-direction:column;gap:12px}
+.aside .box{padding:14px 16px}
+.aside h4{margin:0 0 6px;font-size:15px;font-variation-settings:"wdth" 78}
+.never li::marker{color:var(--guard)}
+
+/* Heatmap */
+.hm-wrap{overflow-x:auto}
+table.heat{border-collapse:separate;border-spacing:4px;min-width:900px;width:100%;table-layout:fixed}
+.heat col.first{width:190px}
+.heat th{font-size:12.5px;font-weight:700;color:var(--graphite);text-align:center;padding:6px;font-variation-settings:"wdth" 80;vertical-align:bottom;line-height:1.2}
+.heat th small{display:block;font-weight:400;font-size:11px}
+.heat td.rh{font-weight:750;font-size:13.5px;font-variation-settings:"wdth" 80;white-space:nowrap;padding-right:10px}
+.heat td.c{height:46px;border-radius:6px;text-align:center;font-size:11.5px;font-weight:650;cursor:help;position:relative}
+.heat td.c3{background:var(--comp);color:#fff}
+.heat td.c2{background:var(--comp-wash);color:var(--comp);border:1px solid color-mix(in srgb,var(--comp) 40%,transparent)}
+.heat td.c1{background:transparent;color:var(--graphite);border:1px dashed var(--rule)}
+.heat td.c:hover,.heat td.c:focus{outline:2px solid var(--ink)}
+.heat-tip{min-height:48px;margin-top:10px;font-size:14px;padding:10px 14px;border-left:4px solid var(--comp);background:var(--sheet);border-radius:0 8px 8px 0}
+.dates{display:grid;grid-template-columns:repeat(6,minmax(150px,1fr));margin-top:22px;overflow-x:auto}
+.dates div{padding:12px 14px 4px 0;border-top:3px solid var(--rule);font-size:13px;position:relative}
+.dates div.now{border-top-color:var(--guard)}
+.dates b{display:block;font-size:19px;font-variation-settings:"wdth" 70}
+.dates div.now b{color:var(--guard)}
+
+/* Procurement */
+.ev{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.ev .sheet{padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.ev h4{margin:0;font-size:16px;font-variation-settings:"wdth" 78;line-height:1.2}
+.ev p{margin:0;font-size:14px;color:var(--graphite)}
+.ev .reg{margin-top:auto;display:flex;gap:5px;flex-wrap:wrap}
+.ico{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;background:var(--agent-wash);color:var(--agent)}
+.ico svg{width:19px;height:19px}
+.qs{margin-top:22px;padding:20px 22px}
+.qs h3{margin:0 0 4px;font-size:20px;font-variation-settings:"wdth" 74}
+.qs ol{margin:10px 0 0;padding-left:22px;columns:2;column-gap:36px}
+.qs li{margin:0 0 10px;break-inside:avoid;font-size:14.5px}
+.qs li span{display:block;color:var(--graphite);font-size:13px}
+table.raci{border-collapse:collapse;width:100%;min-width:760px;font-size:13.5px}
+.raci th,.raci td{padding:9px 12px;border-bottom:1px solid var(--rule-soft);text-align:center}
+.raci th{font-size:12.5px;color:var(--graphite);font-variation-settings:"wdth" 80}
+.raci td:first-child,.raci th:first-child{text-align:left}
+.raci td span{display:inline-grid;place-items:center;width:28px;height:26px;border-radius:5px;font-weight:800;font-size:12.5px}
+.rA{background:var(--ink);color:var(--sheet)} .rR{background:var(--agent-wash);color:var(--agent)} .rC{border:1px solid var(--rule);color:var(--graphite)} .rI{color:var(--graphite)}
+.rX{background:var(--human-wash);color:var(--human)}
+
+/* Rollout */
+.phases{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;position:relative}
+.ph{padding:20px 22px;border-right:1px solid var(--rule)}
+.ph:last-child{border-right:none}
+.ph .tag{font-size:12.5px;font-weight:700;color:var(--agent)}
+.ph h4{margin:4px 0 8px;font-size:21px;font-variation-settings:"wdth" 72;line-height:1.1}
+.ph .gate{margin-top:12px;border:1.5px dashed var(--human);background:var(--human-wash);border-radius:8px;padding:9px 12px;font-size:13px}
+.ph .gate b{color:var(--human)}
+.red{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}
+.red div{border:1.5px solid var(--guard);background:var(--guard-wash);border-radius:8px;padding:12px 14px;font-size:13.5px}
+.red b{display:block;color:var(--guard);font-size:14.5px;margin-bottom:2px;font-variation-settings:"wdth" 80}
+.src{font-size:12.5px;color:var(--graphite);columns:2;column-gap:28px;padding-left:18px}
+.src li{break-inside:avoid;margin:3px 0}
+footer{margin:56px 0 0;padding:16px 0 40px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--graphite)}
+
+/* Present mode */
+body.present .bar .chap{display:none}
+body.present .ch,body.present .hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center}
+body.present{font-size:16.5px}
+.pres-hint{display:none;position:fixed;right:18px;bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--sheet);font-size:12.5px;padding:8px 12px;border-radius:999px;z-index:30}
+body.present .pres-hint{display:block}
+
+@media (max-width:1080px){
+  .hero .grid{grid-template-columns:1fr}
+  .jr,.exp{grid-template-columns:1fr}
+  .ev{grid-template-columns:1fr 1fr}
+  .arch-notes{grid-template-columns:1fr}
+  .red{grid-template-columns:1fr 1fr}
+  .mem{grid-template-columns:1fr 1fr}
+}
+@media (max-width:720px){
+  .w{padding:0 16px}
+  .ch-h{grid-template-columns:1fr} .ch-n{font-size:44px}
+  .stats{grid-template-columns:1fr 1fr}
+  .ev,.red,.phases,.split{grid-template-columns:1fr}
+  .ph{border-right:none;border-bottom:1px solid var(--rule)}
+  .qs ol,.src{columns:1}
+  .layer{grid-template-columns:1fr}
+  .st{grid-template-columns:44px 1fr} .st .bd{grid-column:2}
+  .brand{display:none}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="bar"><div class="w">
+  <div class="brand">Agentic <span>Fulfillment</span></div>
+  <nav class="chap" id="chap" aria-label="Chapters">
+    <a href="#c1">The principle</a><a href="#c2">Follow a hire</a><a href="#c3">Architecture</a><a href="#c4">Inside each agent</a><a href="#c5">Compliance</a><a href="#c6">Red lines</a>
+  </nav>
+  <button class="pbtn" id="present" aria-pressed="false">Present</button>
+</div></div>
+
+<header class="hero" id="top">
+  <div class="w grid">
+    <div>
+      <span class="kicker"><i></i>Proposed reference design</span>
+      <h1>Seven agents run the hiring workflow. People make the hiring decisions.</h1>
+      <p class="lede">Each agent covers one stage of the process flow, from negotiating demand to republishing at-risk requisitions. Agents handle forecasting, outreach, scheduling, evidence gathering and recovery. Hiring, rejection and pay decisions stay with a named person, and every action is logged.</p>
+      <div class="stats">
+        <div><b>7</b><span>agents, one per stage of the process flow</span></div>
+        <div><b>18</b><span>process steps covered, demand to republish</span></div>
+        <div><b>10</b><span>human decision points, all logged with reasons</span></div>
+        <div><b>4</b><span>regimes mapped: EU AI Act, DPDP, US, ISO/NIST</span></div>
+      </div>
+    </div>
+    <div class="orbit">
+      <svg id="heroSvg" viewBox="0 0 560 470" role="img" aria-label="Seven agents arranged in a loop with human checkpoints and a control plane at the centre"></svg>
+      <div class="who"><span><i style="background:#5DC380"></i>Acts on its own</span><span><i style="background:#E4B54B"></i>Acts within limits</span><span><i style="background:#EF7D73"></i>Recommends, person decides</span><span><i style="background:#4EC3BC"></i>Shared control plane</span></div>
+    </div>
+  </div>
+</header>
+
+<main class="w">
+
+<section class="ch" id="c1">
+  <div class="ch-h"><div class="ch-n">01</div><div>
+    <h2>Autonomy follows consequence, not convenience</h2>
+    <p>The same agent can act freely on reversible, administrative work and still stop for a person when the action shapes someone's career or pay. Read the chart bottom to top: the higher the consequence, the more orange it gets.</p>
+    <div class="aud"><span>Leadership</span></div>
+  </div></div>
+  <div class="sheet lad-wrap"><div class="ladder" id="ladder"></div></div>
+  <div class="lad-note"><span><b style="background:var(--agent-wash);border:1px solid var(--agent)"></b>Agent acts on its own, audited after</span><span><b style="background:var(--human)"></b>Person decides, agent prepares the evidence</span></div>
+  <div class="callout">The top row is entirely human. No agent in this design rejects a candidate, takes an adverse trust action, or sets pay. That is the line regulators draw for recruitment AI, and it is also what performs: AI-led information gathering with human decisions has been shown to raise offer and retention rates in field trials.</div>
+</section>
+
+<section class="ch" id="c2">
+  <div class="ch-h"><div class="ch-n">02</div><div>
+    <h2>Follow one requisition through the system</h2>
+    <p>An illustrative scenario: 40 Java developer openings in Pune. Press play, or step through. Watch which actions the agents take alone, where a person steps in, and what lands in the audit ledger.</p>
+    <div class="aud"><span>Leadership</span><span>Self-serve</span></div>
+  </div></div>
+  <div class="jr">
+    <div class="sheet">
+      <div class="track"><svg id="trackSvg" viewBox="0 0 1000 150" role="img" aria-label="Seven-stage track showing current position"></svg></div>
+      <div class="stepcard" id="stepcard" aria-live="polite"></div>
+      <div class="ctrls">
+        <button class="cb" id="prev">Back</button>
+        <button class="cb pri" id="play">Play</button>
+        <button class="cb" id="next">Next</button>
+        <div class="dots" id="dots"></div>
+      </div>
+    </div>
+    <div class="side">
+      <div class="sheet tiles" id="tiles"></div>
+      <div class="sheet ledger"><h4><span>Audit ledger</span><span id="lcount" class="wn" style="color:var(--graphite);font-weight:500"></span></h4><ol id="ledger"></ol></div>
+    </div>
+  </div>
+  <p class="illus">Figures are illustrative to show behaviour, not forecasts or benchmarks.</p>
+</section>
+
+<section class="ch" id="c3">
+  <div class="ch-h"><div class="ch-n">03</div><div>
+    <h2>One control plane under every agent, inside your boundary</h2>
+    <p>Agents never call your systems directly. Every tool call passes a policy check, every consequential action waits in a review console, and every event is written to a ledger. All of it runs inside your environment on your data.</p>
+    <div class="aud"><span>IT and security</span></div>
+  </div></div>
+  <div class="sheet arch">
+    <div class="layer"><div class="ln">People<small>Who works with it</small></div><div class="boxes">
+      <div class="bx hu"><b>Hiring manager</b>Negotiates demand, approves requisition</div>
+      <div class="bx hu"><b>Recruiter</b>Confirms shortlists, owns adverse calls</div>
+      <div class="bx hu"><b>Panel</b>Interviews, decides hire</div>
+      <div class="bx hu"><b>Approver</b>Signs off offer terms and spend</div>
+      <div class="bx"><b>Candidate</b>Told when AI is involved, can reach a person</div>
+    </div></div>
+    <div class="tenancy" data-label="Runs inside the customer's environment, on customer data">
+      <div class="layer"><div class="ln">Experience<small>Where people meet it</small></div><div class="boxes">
+        <div class="bx"><b>Demand workspace</b>Live what-if on fill odds</div>
+        <div class="bx hu"><b>Review console</b>Approve, edit, reject, escalate, stop</div>
+        <div class="bx"><b>Candidate channels</b>Email, SMS, WhatsApp, voice, video</div>
+        <div class="bx"><b>Signal canvas</b>Fill risk across requisitions</div>
+      </div></div>
+      <div class="layer"><div class="ln">Orchestrator<small>Moves the case file</small></div><div class="boxes">
+        <div class="bx ag" style="flex-basis:100%"><b>Fulfillment orchestrator</b>Holds one case file per requisition and candidate, hands work between agents in a fixed format, enforces stage rules</div>
+      </div></div>
+      <div class="layer"><div class="ln">Agents<small>Specialists, narrow scope</small></div><div class="boxes" id="archAgents"></div></div>
+      <div class="layer"><div class="ln">Control plane<small>Built once, enforced outside the model</small></div><div class="boxes">
+        <div class="bx gd"><b>Tool gateway</b>Deny by default, short-lived scoped access</div>
+        <div class="bx gd"><b>Guardrail service</b>Separate model screens inputs and outputs</div>
+        <div class="bx hu"><b>Human review</b>Queues, reasons, overrides</div>
+        <div class="bx cp"><b>Audit ledger</b>Who, what, when, versions, reviewer</div>
+        <div class="bx cp"><b>Consent and notice</b>DPDP notices, withdrawal, deletion</div>
+        <div class="bx cp"><b>Evals and bias monitor</b>Quality and adverse impact by role</div>
+        <div class="bx gd"><b>Stop controls</b>Pause one agent or all</div>
+      </div></div>
+      <div class="layer"><div class="ln">Systems of record<small>Stay the source of truth</small></div><div class="boxes">
+        <div class="bx"><b>ATS</b></div><div class="bx"><b>HRIS</b></div><div class="bx"><b>Comp bands</b></div><div class="bx"><b>Calendars</b></div><div class="bx"><b>Talent pool</b></div><div class="bx"><b>Identity checks</b></div>
+      </div></div>
+    </div>
+  </div>
+  <div class="arch-notes">
+    <div class="sheet"><h4>Your data stays put</h4>Agents read from your systems of record and write back through them. By design, candidate data does not train shared models. Memory expires and is deleted when consent is withdrawn or the purpose ends.</div>
+    <div class="sheet"><h4>Every agent has an identity</h4>Each agent has its own permissions and its own trail, so any action can be traced to the agent, the policy version and the person who approved it.</div>
+    <div class="sheet"><h4>Built to be handed over</h4>Co-created with your team, documented as it is built, and designed for your ownership: playbooks, rubrics and thresholds live in your configuration, not in vendor code.</div>
+  </div>
+</section>
+
+<section class="ch" id="c4">
+  <div class="ch-h"><div class="ch-n">04</div><div>
+    <h2>Inside each agent: the same eight-part build</h2>
+    <p>Every agent is assembled from the same parts: a goal, memory with an expiry date, a plan, guardrails on the way in and out, scoped tools, an autonomy gate, and a record. Pick an agent.</p>
+    <div class="aud"><span>Product and engineering</span><span>Self-serve</span></div>
+  </div></div>
+  <div class="tabs" id="tabs" role="tablist"></div>
+  <div class="exp">
+    <div class="sheet" id="anat" role="tabpanel"></div>
+    <div class="aside" id="aside"></div>
+  </div>
+</section>
+
+<section class="ch" id="c5">
+  <div class="ch-h"><div class="ch-n">05</div><div>
+    <h2>Compliance designed in, stage by stage</h2>
+    <p>Recruitment AI is treated as high-risk by default. Each cell shows how strongly a control applies to an agent. Hover or tap a cell for the reason.</p>
+    <div class="aud"><span>Legal and privacy</span></div>
+  </div></div>
+  <div class="sheet" style="padding:16px 18px">
+    <div class="hm-wrap"><table class="heat" id="heat"></table></div>
+    <div class="heat-tip" id="heatTip">Select a cell to see why the control applies.</div>
+    <div class="lad-note"><span><b style="background:var(--comp)"></b>Core control for this agent</span><span><b style="background:var(--comp-wash);border:1px solid var(--comp)"></b>Applies</span><span><b style="border:1px dashed var(--rule)"></b>Not material</span></div>
+  </div>
+  <div class="dates">
+    <div class="now"><b>In force</b>EU ban on emotion inference at work; NYC LL144 bias audits</div>
+    <div class="now"><b>2 Aug 2026</b>EU duty to tell people they are talking to AI</div>
+    <div><b>13 Nov 2026</b>DPDP consent manager regime starts</div>
+    <div><b>1 Jan 2027</b>Colorado disclosure and human-review path</div>
+    <div><b>13 May 2027</b>DPDP notice, consent and rights fully enforceable</div>
+    <div><b>2 Dec 2027</b>EU high-risk duties for recruitment AI</div>
+  </div>
+</section>
+
+<section class="ch" id="c6">
+  <div class="ch-h"><div class="ch-n">06</div><div>
+    <h2>Red lines, held regardless of what competitors ship</h2>
+    <p>Some capabilities are left out on purpose. They carry legal exposure today and erode candidate trust, and the same outcome can be reached with evidence and a human decision.</p>
+    <div class="aud"><span>Leadership</span><span>Legal and privacy</span></div>
+  </div></div>
+  <div class="red">
+    <div><b>No emotion inference</b>Nothing is scored from tone of voice or facial expression.</div>
+    <div><b>No auto-reject</b>A person confirms every exit, with an appeal route.</div>
+    <div><b>No AI negotiator</b>The agent never holds or bargains the pay ceiling.</div>
+    <div><b>No hidden scores</b>No cross-employer score gates a candidate; evidence, not a number.</div>
+  </div>
+
+  <h3 style="margin:34px 0 8px;font-size:18px;font-variation-settings:'wdth' 74">Sources</h3>
+  <ul class="src">
+    <li><a href="https://www.anthropic.com/engineering/building-effective-agents">Anthropic: Building effective agents</a></li>
+    <li><a href="https://neuraltrust.ai/blog/owasp-top-10-for-agentic-applications-2026">OWASP Top 10 for Agentic Applications 2026</a></li>
+    <li><a href="https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-12">EU AI Act Art. 12 record-keeping</a></li>
+    <li><a href="https://artificialintelligenceact.eu/?p=2969">EU AI Act Art. 14 human oversight</a></li>
+    <li><a href="https://presencis.com/regulations/eu-ai-act/conformity/article-14-human-oversight">Art. 14 in practice: oversight logging and automation bias</a></li>
+    <li><a href="https://www.bassberry.com/news/indias-data-privacy-rules-what-your-business-needs-to-know/">DPDP Rules 2025 timeline</a></li>
+    <li><a href="https://bhattandjoshiassociates.com/digital-personal-data-protection-dpdp-rules-2025-a-comprehensive-compliance-framework-for-corporate-entities-in-india/">DPDP notice, withdrawal and erasure</a></li>
+    <li><a href="https://hidekazu-konishi.com/entry/ai_agent_memory_design_guide.html">Agent memory types and expiry design</a></li>
+    <li><a href="https://jacar.es/en/human-in-the-loop-in-ai-agents/">Human-in-the-loop interrupt and approval patterns</a></li>
+    <li><a href="https://www.gravitee.io/mcp-authorization.html">MCP authorization and scoped tool access</a></li>
+    <li><a href="https://techjacksolutions.com/ai/agentic-ai/govern/agent-governance-stack/">NIST AI RMF, ISO 42001 and EU AI Act as one stack</a></li>
+    <li>Internal agentic hiring research board; customer process-flow slide</li>
+  </ul>
+</section>
+
+<footer>Proposed design for discussion. Not legal advice: the regulatory mapping is a starting point for review with legal and the customer's privacy office. Scenario figures are illustrative.</footer>
+</main>
+<div class="pres-hint">Arrow keys move between chapters. Esc to exit.</div>
+
+<script>
+const T={A:{l:"Tier A",n:"Acts, audited after",c:"var(--tA)"},B:{l:"Tier B",n:"Acts within limits",c:"var(--tB)"},C:{l:"Tier C",n:"Recommends, person decides",c:"var(--tC)"}};
+const AG=[
+{id:"demand",stage:"Negotiate Demand",short:"Demand",steps:"Steps 1 to 2",tier:"B",
+ goal:"Turn a hiring request into an approved requisition with a fill forecast the hiring manager can negotiate against.",
+ trigger:"New request from a hiring manager, a workforce plan change, or a draft requisition in the ATS.",
+ plan:"Each change the hiring manager makes reruns the forecast and the contradiction checks, so trade-offs are visible live.",
+ mem:{w:"Current draft and this session's edits",e:"Past requisitions for the team, forecast vs actual",s:"Skill ontology, comp bands, local talent supply",p:"Intake playbook, approval matrix"},
+ tools:[["ATS requisitions","r"],["Headcount plan","r"],["Comp bands","r"],["Fill forecast","r"],["Save draft","w"],["Request approval","gw"]],
+ inG:["Personal data of current employees removed before use","Pasted notes treated as data, screened for hidden instructions","Flags biased terms such as age or 'native speaker'"],
+ outG:["Each criterion marked essential, preferred or optional, with who asked for it","Salary must sit inside the approved band","Forecast shown as a range with data freshness"],
+ auto:["Draft requisition and JD","Forecast time and odds to fill","Flag contradictions"],human:["Publish the requisition","Change headcount, band, location or type"],
+ hcp:"Hiring manager and recruiter",log:"Original ask, each edit and author, forecast version, approver",
+ evals:["Forecast error in days","Contradictions resolved before publish"],never:["Publish on its own","Copy the profile of past hires as a target"],
+ tv:"Partial: criteria generation and interview builder exist; forecasting is new."},
+{id:"sense",stage:"Sense & Match",short:"Match",steps:"Steps 3 to 5",tier:"B",
+ goal:"Build a ranked, evidence-backed shortlist from internal talent and past applicants before going to the market.",
+ trigger:"Requisition approved, or new and re-engaged candidates arrive from the self-healing loop.",
+ plan:"Searches internal talent, past applicants and verified passports in parallel, then ranks and explains in one step.",
+ mem:{w:"Approved criteria, current pool",e:"Past outreach and outcomes per candidate",s:"Consented profiles, internal talent graph",p:"Rediscovery rules, contact caps, no-poach list"},
+ tools:[["Search ATS","r"],["Internal talent","r"],["Fitment score","r"],["Passport lookup","r"],["No-poach check","r"],["Propose shortlist","w"]],
+ inG:["Only profiles with consent for this purpose","Out-of-date profiles flagged","No-poach and blocklisted employers excluded first"],
+ outG:["Evidence card per candidate: criterion, evidence, source, freshness","'Not found' never shown as 'does not have'","No unexplained single score"],
+ auto:["Build and refresh the pool","Rank with reasons"],human:["Confirm the shortlist","Accept or override risk flags"],
+ hcp:"Recruiter",log:"Sources, criteria version, ranking, overrides",
+ evals:["Recruiter acceptance of top picks","Adverse impact by group"],never:["Score from scraped social data","Use names, photos or graduation year as proxies"],
+ tv:"Have and partial: fitment, global candidate view, recommendation engine."},
+{id:"engage",stage:"Engage & Verify",short:"Engage",steps:"Steps 6 to 7",tier:"A",
+ goal:"Get shortlisted candidates to respond, prescreened and scheduled with the least friction, reusing a verified passport where one exists.",
+ trigger:"Shortlist confirmed.",
+ plan:"Reach out, answer, prescreen, schedule, verify, hand off, with a cap on retries at every step.",
+ mem:{w:"Current conversation",e:"Contact history, opt-outs, language and channel",s:"Approved FAQ and role facts",p:"Reminder cadence, escalation script"},
+ tools:[["Messaging","w"],["AI voice call","w"],["Offer slots","w"],["Request passport","w"],["Identity check","r"],["Hand to recruiter","w"]],
+ inG:["Candidate replies are data, never instructions","Opt-out stops all contact at once","Language detected before replying"],
+ outG:["AI disclosed in the first message","Answers only from approved content, else a person","Frequency cap and quiet hours"],
+ auto:["Send, answer, remind","Schedule and reschedule"],human:["Identity mismatch","Dispute or request for a person"],
+ hcp:"Recruiter",log:"Messages, disclosures, consents, opt-outs, hand-offs",
+ evals:["Response and opt-out rates","Answer accuracy on samples"],never:["Read mood from voice","Drop someone for silence alone"],
+ tv:"Have: scheduler, AI voice screening, workflow reminders, identity checks."},
+{id:"screen",stage:"Screen & Score",short:"Screen",steps:"Steps 8 to 10",tier:"C",
+ goal:"Give a requirement-by-requirement evidence view per candidate, with identity signals kept separate from capability.",
+ trigger:"Candidate finishes the AI screen, or shares a passport still in date.",
+ plan:"Two independent checks, one for capability and one for identity, then a review of evidence coverage.",
+ mem:{w:"This candidate's evidence",e:"Earlier assessments, with expiry",s:"Rubric, criteria, ontology",p:"Scoring rules and cutoff (versioned)"},
+ tools:[["Parse resume","r"],["Assessment score","r"],["Verify passport","r"],["Integrity signals","r"],["Compare to criteria","r"],["Move stage","gw"]],
+ inG:["Failed resume parsing goes to a person, not 'missing'","Passport expiry and consent checked","Resume screened for hidden instructions"],
+ outG:["Capability and identity shown apart","Missing evidence kept distinct from negative","Uncertainty flagged"],
+ auto:["Score and compare","Sort into advance, review and warm-bench queues"],human:["Advance or archive (bulk confirm for warm bench)","Any adverse identity action"],
+ hcp:"Recruiter",log:"Criteria, evidence, versions, reviewer, override and reason",
+ evals:["AI and reviewer agreement","Override rate","Adverse impact by group"],never:["Auto-reject","Gate on a cross-employer score"],
+ tv:"Have and partial: fitment, assessments and identity checks; separated evidence view is partial."},
+{id:"interview",stage:"Interview",short:"Interview",steps:"Steps 11 to 13",tier:"B",
+ goal:"Run a consistent first-round AI interview, recommend the right panel, and give panelists rubric-linked evidence.",
+ trigger:"Candidate advanced to interview.",
+ plan:"Adaptive follow-ups inside an approved interview plan, then answers mapped to the rubric with timestamps.",
+ mem:{w:"Live transcript, rubric coverage",e:"Earlier stage evidence, panel history",s:"Rubric, question bank, panel fit graph",p:"Interview plan, coaching prompts"},
+ tools:[["AI interviewer","w"],["Transcribe and translate","r"],["Map to rubric","r"],["Recommend panel","r"],["Lock panel","gw"],["Panelist nudge","w"]],
+ inG:["Identity rechecked at start","Recording consent and accommodations captured","Original language kept beside translation"],
+ outG:["Every score cites the transcript","Identity flags apart from capability","Coaching limited to rubric coverage"],
+ auto:["Run first-round interview","Summarise and recommend a panel"],human:["Lock the panel","Hire or no-hire"],
+ hcp:"Recruiter, panel and hiring manager",log:"Plan version, transcript, evidence-linked scores, panel acceptance",
+ evals:["Rubric coverage","AI and panel agreement","Speech errors by accent"],never:["Infer emotion or personality","Grade panelists on later performance yet"],
+ tv:"Have and partial: AI interviewer and insights exist; panel fit and live coaching are new."},
+{id:"offer",stage:"Offer & Close",short:"Offer",steps:"Steps 14 to 15",tier:"C",
+ goal:"Prepare a policy-valid offer fast, forecast acceptance and joining, and support the recruiter who negotiates.",
+ trigger:"Hire decision recorded.",
+ plan:"Fixed sequence with a check at every step: readiness, policy, forecast, draft, approval, send, documents.",
+ mem:{w:"Offer draft, negotiation notes",e:"Expectations shared at screening",s:"Comp bands, benefits, policy",p:"Approval matrix, templates"},
+ tools:[["Comp bands","r"],["Policy check","r"],["Acceptance forecast","r"],["Draft offer","w"],["Request approval","gw"],["Send for signature","gw"]],
+ inG:["No access to protected attributes","Pay data sources dated and versioned"],
+ outG:["Hard stop outside the approved band","Forecast at band level, never a personal price","Every term change logged with approver"],
+ auto:["Readiness and policy checks","Draft, chase documents, forecast"],human:["Band, concessions, exceptions","Send the offer"],
+ hcp:"Recruiter and approver",log:"Band, each change and approver, forecast version",
+ evals:["Accept and join vs forecast","Pay spread within band across groups"],never:["Negotiate on its own","Read willingness to pay from tone"],
+ tv:"Gap: new build; workflow automation can carry document chasing."},
+{id:"sentinel",stage:"Self-Heal & Republish",short:"Sentinel",steps:"Steps 16 to 18",tier:"B",
+ goal:"Keep every requisition on track: sense fill risk and broken flows, fix what is safe, and ask before spending or changing criteria.",
+ trigger:"Always on: scheduled scans plus events such as no-shows, drop-offs or market signals.",
+ plan:"Detect, diagnose, then run an approved playbook. Anything outside a playbook or above a cap becomes a request to a person.",
+ mem:{w:"Incident context",e:"Past incidents and fixes",s:"Funnel baselines, market signals",p:"Approved playbooks with caps"},
+ tools:[["Telemetry","r"],["Funnel metrics","r"],["Market signals","r"],["Re-engage warm bench","w"],["Republish","gw"],["Pause agent","w"]],
+ inG:["Market signals at company and role level only","Two signals needed before acting"],
+ outG:["Before and after state saved for every fix","Only reversible fixes run alone","Spend and contact caps"],
+ auto:["Diagnose and alert","Fix broken links or schedules","Re-engage the warm bench"],human:["Spend or channels above cap","Criteria or cutoff change","Unfreeze"],
+ hcp:"Recruiter and requisition owner",log:"Trigger, diagnosis, playbook, before and after, approver",
+ evals:["Time to detect and recover","False alarm rate"],never:["Quietly change who is eligible","Move candidates as a repair"],
+ tv:"Gap and partial: dashboards and digests exist; the act-and-recover layer is new."}
+];
+
+/* Hero loop */
+(function(){
+  const s=document.getElementById("heroSvg"),cx=280,cy=230,R=175,n=AG.length;
+  const tierC={A:"#5DC380",B:"#E4B54B",C:"#EF7D73"};
+  let h=`<defs><radialGradient id="cg"><stop offset="0" stop-color="#4EC3BC" stop-opacity=".35"/><stop offset="1" stop-color="#4EC3BC" stop-opacity="0"/></radialGradient></defs>`;
+  h+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#33405C" stroke-width="2" stroke-dasharray="3 7"/>`;
+  h+=`<circle cx="${cx}" cy="${cy}" r="96" fill="url(#cg)"/><circle cx="${cx}" cy="${cy}" r="70" fill="#0F2A33" stroke="#4EC3BC" stroke-width="1.5"/>`;
+  h+=`<text x="${cx}" y="${cy-8}" text-anchor="middle" fill="#CFF3F0" font-size="15" font-weight="750" style="font-variation-settings:'wdth' 72">Control plane</text>`;
+  h+=`<text x="${cx}" y="${cy+12}" text-anchor="middle" fill="#8FD9D3" font-size="11.5">policy, review, audit</text>`;
+  AG.forEach((a,i)=>{
+    const ang=-Math.PI/2+i*2*Math.PI/n, x=cx+R*Math.cos(ang), y=cy+R*Math.sin(ang);
+    const lx=cx+(R+0)*Math.cos(ang), ly=cy+(R+0)*Math.sin(ang);
+    h+=`<line x1="${cx+72*Math.cos(ang)}" y1="${cy+72*Math.sin(ang)}" x2="${x-30*Math.cos(ang)}" y2="${y-30*Math.sin(ang)}" stroke="#2C4B5A" stroke-width="1"/>`;
+    h+=`<g class="hn" data-i="${i}"><circle cx="${x}" cy="${y}" r="30" fill="#1C2140" stroke="#8F7BF0" stroke-width="2"/>`;
+    h+=`<text x="${x}" y="${y+4}" text-anchor="middle" fill="#E9E5FF" font-size="11.5" font-weight="700" style="font-variation-settings:'wdth' 75">${a.short}</text></g>`;
+    const ox=cx+(R+46)*Math.cos(ang), oy=cy+(R+46)*Math.sin(ang);
+    h+=`<circle cx="${ox}" cy="${oy}" r="9" fill="${tierC[a.tier]}" stroke="#121A2B" stroke-width="3"/>`;
+  });
+  h+=`<circle id="tok" r="7" fill="#fff" stroke="#8F7BF0" stroke-width="3"/>`;
+  s.innerHTML=h;
+  const tok=s.querySelector("#tok"); let t=0;
+  const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function frame(){t+=0.0022; const ang=-Math.PI/2+t*2*Math.PI; tok.setAttribute("cx",cx+R*Math.cos(ang)); tok.setAttribute("cy",cy+R*Math.sin(ang)); if(!reduce) requestAnimationFrame(frame);}
+  frame();
+})();
+
+/* Ladder */
+(function(){
+  const L={
+   demand:[["Forecast fill odds","a"],["Draft requisition","a"],["|"],["Approve requisition and band","h"],["|"]],
+   sense:[["Build pool, evidence cards","a"],["|"],["Rank with reasons","a"],["Confirm shortlist","h"],["|"]],
+   engage:[["Outreach, FAQs, scheduling","a"],["|"],["Identity mismatch review","h"],["|"]],
+   screen:[["Score against criteria","a"],["|"],["Sort into queues","a"],["|"],["Advance or archive","h"],["Adverse identity action","h"]],
+   interview:[["Transcribe, map to rubric","a"],["|"],["Run first-round interview","a"],["Lock panel","h"],["|"],["Hire decision","h"]],
+   offer:[["Draft offer, chase documents","a"],["Forecast acceptance","a"],["|"],["|"],["Band, concessions, send","h"]],
+   sentinel:[["Fix broken flows","a"],["Re-engage warm bench","a"],["|"],["Spend above cap","h"],["Criteria change","h"],["|"]]
+  };
+  const rows=[["r3","Decides outcome or pay","Hiring, rejection, adverse action, offer terms"],["r2","Shapes who progresses","Ranking, shortlists, panels, spend"],["r1","Coordinates and prepares","Reversible admin and analysis"]];
+  let h=`<div class="lad-col" style="border-bottom-color:transparent"></div>`+AG.map(a=>`<div class="lad-col">${a.stage}<div style="font-weight:500;font-size:11.5px;color:var(--graphite);margin-top:3px"><span class="tdot" style="background:${T[a.tier].c}"></span> ${T[a.tier].l}</div></div>`).join("");
+  rows.forEach((r,ri)=>{
+    h+=`<div class="lad-row ${r[0]}">${r[1]}<small>${r[2]}</small></div>`;
+    AG.forEach(a=>{
+      const segs=[[]];L[a.id].forEach(x=>{if(x[0]==="|")segs.push([]);else segs[segs.length-1].push(x);});
+      const band=[segs[2]||[],segs[1]||[],segs[0]||[]][ri];
+      h+=`<div class="lad-cell ${ri===0?"lad-band3":""}">${band.map(p=>`<span class="pill ${p[1]}">${p[0]}</span>`).join("")}</div>`;
+    });
+  });
+  document.getElementById("ladder").innerHTML=h;
+})();
+
+/* Journey */
+const J=[
+{s:0,who:"a",title:"Demand Agent forecasts the requisition",body:"A hiring manager asks for 40 Java developers in Pune, 7+ years, on-site. The agent checks past requisitions, local talent supply and the comp band, and forecasts 52 days to fill with 61% odds.",chips:[["g","Biased terms check: clear"],["c","Forecast shown as a range"]],log:"demand-agent: forecast v1.3, 52 days, 61%",k:{forecast:"52d / 61%"},auto:1},
+{s:0,who:"h",title:"Hiring manager negotiates, then approves",body:"Relaxing to 5+ years and allowing hybrid moves the forecast to 38 days and 78%. The hiring manager approves the requisition. The agent cannot publish it alone.",chips:[["h","Approval: hiring manager"],["c","ISO 42001 change control"]],log:"hiring manager approved req R-2041 (edits: exp 7 to 5, hybrid)",k:{forecast:"38d / 78%"},hum:1},
+{s:1,who:"a",title:"Sense and Match looks inside first",body:"214 internal and past candidates scanned. 63 get evidence cards showing which criteria they meet and where the evidence came from. 4 are excluded by the no-poach rule before ranking.",chips:[["g","No-poach rule applied"],["g","Consent checked per profile"],["c","Bias audit evidence"]],log:"match-agent: pool 214, cards 63, excluded 4 (no-poach)",k:{pool:214},auto:1},
+{s:1,who:"h",title:"Recruiter confirms the shortlist",body:"The recruiter reviews the evidence cards, removes two, and accepts one requisition risk flag. 48 candidates move on.",chips:[["h","Decision: recruiter"],["c","EU AI Act Art. 14 oversight"]],log:"recruiter confirmed shortlist 48 (removed 2, reason logged)",k:{short:48},hum:1},
+{s:2,who:"a",title:"Engage reaches out, and says it is AI",body:"WhatsApp and email interest checks go out with AI disclosure in the first line. 31 reply within two days. 9 share a verified passport, so they skip the AI screen.",chips:[["c","EU AI Act Art. 50 disclosure"],["c","DPDP notice and consent"],["g","Quiet hours and caps"]],log:"engage-agent: 48 contacted, 31 replied, 9 passports reused",k:{engaged:31},auto:1},
+{s:3,who:"a",title:"Screen and Score builds evidence, not a verdict",body:"22 complete the AI screen. Capability evidence and identity signals are evaluated separately. 3 identity mismatches are routed to the recruiter instead of being rejected.",chips:[["g","Capability and identity kept apart"],["g","Parser failures go to a person"]],log:"screen-agent: 31 evaluated, 3 identity flags to review",k:{eval:31},auto:1},
+{s:3,who:"h",title:"Recruiter advances and archives, with reasons",body:"18 advance. 7 below the cutoff are proposed for the warm bench, and the recruiter bulk-confirms because the move is reversible. Identity flags are cleared for 2 and escalated for 1.",chips:[["h","Decision: recruiter"],["c","No auto-reject"],["c","NYC LL144 notice"]],log:"recruiter: advanced 18, warm bench 7, identity cleared 2, escalated 1",k:{eval:18},hum:1},
+{s:4,who:"a",title:"AI first-round interview and panel recommendation",body:"16 candidates complete the AI interview. Every score links to a transcript timestamp. The agent recommends panelists by skill fit and availability.",chips:[["g","No emotion inference"],["c","Recording consent"],["c","EU AI Act Art. 12 logs"]],log:"interview-agent: 16 interviews, rubric coverage 94%, panel proposed",k:{iv:16},auto:1},
+{s:4,who:"h",title:"Panel interviews and decides",body:"The recruiter locks the panel. Panelists see evidence and get rubric-coverage nudges, never judgements on the candidate. The panel selects 6.",chips:[["h","Decision: panel"],["h","Lock: recruiter"]],log:"panel decision: 6 hire, 3 no-hire (reasons logged)",k:{iv:6},hum:1},
+{s:5,who:"a",title:"Offer drafted inside the approved band",body:"The agent checks readiness and policy, drafts 6 offers inside the band, and forecasts that 4 to 5 will join. It does not price individuals or negotiate.",chips:[["g","Hard stop outside band"],["c","Pay transparency evidence"]],log:"offer-agent: 6 drafts, all in band, cohort forecast 4 to 5 join",k:{offers:6},auto:1},
+{s:5,who:"h",title:"Recruiter negotiates, approver signs",body:"One candidate asks for more. The recruiter negotiates within the guardrails and the approver signs an exception. The term change and approver are logged.",chips:[["h","Decision: approver"],["c","Every term change logged"]],log:"approver signed exception for 1 offer (within policy)",hum:1},
+{s:6,who:"a",title:"Sentinel spots risk and fixes what it safely can",body:"Drop-off spikes at scheduling. Sentinel finds a broken booking link, fixes it, and re-engages 12 warm-bench candidates. Fill risk is still rising.",chips:[["g","Reversible fixes only"],["c","EU AI Act Art. 72 monitoring"]],log:"sentinel: link fixed, 12 re-engaged, fill risk high",auto:1},
+{s:6,who:"h",title:"Recruiter approves wider reach, loop restarts",body:"Expanding to two job boards is above the spend cap, so Sentinel asks. The recruiter approves. 37 new and re-engaged candidates flow straight back into Sense and Match, without renegotiating demand.",chips:[["h","Approval: spend above cap"],["c","Re-contact respects opt-out"]],log:"recruiter approved channel expansion; 37 candidates to match",k:{pool:"+37"},hum:1}
+];
+const TILE=[["forecast","Forecast","-"],["pool","Candidate pool","-"],["short","Shortlisted","-"],["engaged","Responded","-"],["eval","Evaluated / advanced","-"],["iv","Interviewed / selected","-"],["offers","Offers","-"],["hd","Human decisions","0"],["ad","Agent actions","0"]];
+let ji=0,timer=null;
+function trackSvg(){
+  const s=document.getElementById("trackSvg"),n=AG.length,x0=70,x1=930,y=62;
+  let h=`<line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="var(--rule)" stroke-width="4" stroke-linecap="round"/>`;
+  h+=`<line id="prog" x1="${x0}" y1="${y}" x2="${x0}" y2="${y}" stroke="var(--agent)" stroke-width="4" stroke-linecap="round" style="transition:all .5s"/>`;
+  h+=`<path d="M${x1} ${y+26} C ${x1} 140, ${x0+(x1-x0)/6} 140, ${x0+(x1-x0)/6} ${y+26}" fill="none" stroke="var(--agent)" stroke-width="1.5" stroke-dasharray="4 5" opacity=".6"/>`;
+  AG.forEach((a,i)=>{const x=x0+i*(x1-x0)/(n-1);
+    h+=`<g id="tn${i}"><circle cx="${x}" cy="${y}" r="17" fill="var(--sheet)" stroke="var(--rule)" stroke-width="2.5"/><circle cx="${x}" cy="${y}" r="6" fill="${T[a.tier].c}"/>
+    <text x="${x}" y="${y-28}" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)" style="font-variation-settings:'wdth' 76">${a.stage}</text></g>`;});
+  h+=`<g id="jtok" style="transition:transform .5s"><circle r="11" fill="var(--agent)"/><circle r="17" fill="none" stroke="var(--agent)" stroke-width="2" opacity=".35"/></g>`;
+  h+=`<text x="${(x0+x1)/2}" y="146" text-anchor="middle" font-size="12" fill="var(--agent)">self-healing loop back to Sense and Match</text>`;
+  s.innerHTML=h;
+}
+function renderJ(){
+  const st=J[ji],n=AG.length,x0=70,x1=930,x=x0+st.s*(x1-x0)/(n-1);
+  const tok=document.getElementById("jtok");tok.setAttribute("transform",`translate(${x},62)`);
+  tok.querySelectorAll("circle").forEach((c,i)=>{c.setAttribute(i?"stroke":"fill",st.who==="h"?"var(--human)":"var(--agent)")});
+  document.getElementById("prog").setAttribute("x2",x);
+  AG.forEach((a,i)=>{const c=document.querySelector(`#tn${i} circle`);c.setAttribute("stroke",i===st.s?(st.who==="h"?"var(--human)":"var(--agent)"):i<st.s?"var(--agent)":"var(--rule)")});
+  document.getElementById("stepcard").innerHTML=`<div class="stephead"><span class="who-b ${st.who}">${st.who==="h"?"Person decides":"Agent acts"}</span><span class="stepno">Moment ${ji+1} of ${J.length}, ${AG[st.s].stage}</span></div>
+   <h3>${st.title}</h3><p>${st.body}</p><div class="chips">${st.chips.map(c=>`<span class="chip ${c[0]}">${c[1]}</span>`).join("")}</div>`;
+  const vals={};TILE.forEach(t=>vals[t[0]]=t[2]);let hd=0,ad=0;
+  for(let i=0;i<=ji;i++){Object.assign(vals,J[i].k||{});if(J[i].hum)hd++;if(J[i].auto)ad++;}
+  vals.hd=hd;vals.ad=ad;
+  const changed=Object.keys(st.k||{});
+  document.getElementById("tiles").innerHTML=TILE.map(t=>`<div class="tile ${changed.includes(t[0])?"flash":""} ${t[0]==="hd"?"hd":""}"><b>${vals[t[0]]}</b><span>${t[1]}</span></div>`).join("");
+  document.getElementById("ledger").innerHTML=J.slice(0,ji+1).map((x,i)=>`<li class="${x.who==='h'?'h':''} ${i===ji?'new':''}"><span class="t">${String(9+Math.floor(i*0.8)).padStart(2,"0")}:${String((i*17)%60).padStart(2,"0")}</span><span class="m">${x.log}</span></li>`).reverse().join("");
+  document.getElementById("lcount").textContent=`${ji+1} entries`;
+  document.querySelectorAll("#dots button").forEach((b,i)=>{b.classList.toggle("on",i===ji)});
+}
+function go(i){ji=(i+J.length)%J.length;renderJ();}
+function stop(){clearInterval(timer);timer=null;document.getElementById("play").textContent="Play";}
+document.getElementById("dots").innerHTML=J.map((x,i)=>`<button class="${x.who==='h'?'h':''}" aria-label="Moment ${i+1}">${i+1}</button>`).join("");
+document.querySelectorAll("#dots button").forEach((b,i)=>b.onclick=()=>{stop();go(i)});
+document.getElementById("next").onclick=()=>{stop();go(ji+1)};
+document.getElementById("prev").onclick=()=>{stop();go(ji-1)};
+document.getElementById("play").onclick=()=>{if(timer){stop();return;}document.getElementById("play").textContent="Pause";if(ji===J.length-1)go(0);timer=setInterval(()=>{if(ji===J.length-1){stop();return;}go(ji+1)},3600)};
+trackSvg();renderJ();
+
+/* Architecture agents */
+document.getElementById("archAgents").innerHTML=AG.map(a=>`<div class="bx ag"><b>${a.stage}</b><span style="font-size:12px"><span class="tdot" style="background:${T[a.tier].c}"></span> ${T[a.tier].n}</span></div>`).join("");
+
+/* Explorer */
+let sel="screen";
+function renderTabs(){
+  document.getElementById("tabs").innerHTML=AG.map(a=>`<button class="tab" role="tab" aria-selected="${a.id===sel}" data-id="${a.id}"><span class="tdot" style="background:${T[a.tier].c}"></span>${a.stage}</button>`).join("");
+  document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{sel=b.dataset.id;renderTabs();renderAnat();});
+}
+function renderAnat(){
+  const a=AG.find(x=>x.id===sel),li=x=>`<ul class="t">${x.map(y=>`<li>${y}</li>`).join("")}</ul>`;
+  const tk={r:"read",w:"write",gw:"after approval"};
+  document.getElementById("anat").innerHTML=`<div class="ahead"><div><h3>${a.stage}</h3><p>${a.goal}</p></div><span class="badge" style="color:${T[a.tier].c}"><span class="tdot" style="background:${T[a.tier].c}"></span>${T[a.tier].l}: ${T[a.tier].n}</span></div>
+  <ol class="spine">
+   <li class="st"><div class="n"><span>1</span></div><div class="nm">Goal and trigger<small>What starts it</small></div><div class="bd">${a.trigger}</div></li>
+   <li class="st"><div class="n"><span>2</span></div><div class="nm">Memory<small>What it recalls, with expiry</small></div><div class="bd"><div class="mem"><div><b>Working</b>${a.mem.w}</div><div><b>Episodic</b>${a.mem.e}</div><div><b>Semantic</b>${a.mem.s}</div><div><b>Procedural</b>${a.mem.p}</div></div></div></li>
+   <li class="st"><div class="n"><span>3</span></div><div class="nm">Plan<small>How it reasons</small></div><div class="bd">${a.plan}</div></li>
+   <li class="st g"><div class="n"><span>4</span></div><div class="nm">Input guardrails<small>Before it thinks</small></div><div class="bd">${li(a.inG)}</div></li>
+   <li class="st"><div class="n"><span>5</span></div><div class="nm">Tools<small>Through the gateway</small></div><div class="bd"><div class="tools">${a.tools.map(t=>`<span class="tool">${t[0]}<i class="${t[1]}">${tk[t[1]]}</i></span>`).join("")}</div></div></li>
+   <li class="st g"><div class="n"><span>6</span></div><div class="nm">Output guardrails<small>Before anything leaves</small></div><div class="bd">${li(a.outG)}</div></li>
+   <li class="st h"><div class="n"><span>7</span></div><div class="nm">Autonomy gate<small>Routed by consequence</small></div><div class="bd"><div class="split"><div class="au"><h5>Does on its own</h5>${li(a.auto)}</div><div class="hm"><h5>Waits for ${a.hcp.toLowerCase()}</h5>${li(a.human)}</div></div></div></li>
+   <li class="st"><div class="n"><span>8</span></div><div class="nm">Record and evaluate<small>Proof it behaved</small></div><div class="bd"><b>Logged:</b> ${a.log}.<div style="margin-top:6px"><b>Measured on:</b> ${a.evals.join("; ")}.</div></div></li>
+  </ol>`;
+  document.getElementById("aside").innerHTML=`
+   <div class="sheet box" style="border-left:4px solid var(--guard)"><h4>Never does</h4><ul class="t never">${a.never.map(x=>`<li>${x}</li>`).join("")}</ul></div>
+   <div class="sheet box" style="border-left:4px solid var(--human)"><h4>Who decides</h4><p style="margin:0;font-size:14px">${a.hcp}: ${a.human.join("; ").toLowerCase()}.</p></div>
+   <div class="sheet box" style="border-left:4px solid var(--agent)"><h4>Where it sits in the flow</h4><p style="margin:0;font-size:14px">${a.steps} of the customer process flow.</p></div>
+   <div class="sheet box" style="border-left:4px solid var(--graphite)"><h4>Talview starting point</h4><p style="margin:0;font-size:14px">${a.tv}</p></div>`;
+}
+renderTabs();renderAnat();
+
+/* Heatmap */
+(function(){
+  const cols=[["AI disclosure","Art. 50, LL144"],["Human oversight","Art. 14"],["Event logging","Art. 12"],["Bias testing","Art. 10, LL144"],["Consent and deletion","DPDP"],["No emotion inference","Art. 5(1)(f)"],["Least privilege","Art. 15, OWASP"]];
+  const M={
+   demand:[[1,"Internal users only; no candidate interaction."],[3,"Requisition and band changes need hiring manager approval."],[3,"Every edit and forecast version is traceable."],[2,"Criteria checked for biased terms and proxies."],[2,"Incumbent employee data used only for this purpose."],[1,"No audio or video processed."],[3,"Read-only on HRIS and comp; draft-only writes to ATS."]],
+   sense:[[2,"Candidates told when an automated tool assists screening (LL144 notice)."],[3,"Recruiter confirms every shortlist."],[3,"Sources, criteria version and overrides recorded."],[3,"Ranking substantially assists selection, so it is audited."],[3,"Reuse of past applicant data needs valid consent."],[1,"No audio or video processed."],[3,"Search tools are read-only."]],
+   engage:[[3,"First message discloses AI; candidates can reach a person."],[2,"Identity mismatches and disputes go to a recruiter."],[3,"Messages, consents and opt-outs logged."],[2,"Response handling monitored across languages."],[3,"Standalone notice; withdrawal as easy as consent."],[3,"Voice calls never scored for mood or anger."],[3,"Messaging limited by caps and quiet hours."]],
+   screen:[[2,"Notice of automated screening before use."],[3,"A person decides every advance, archive and adverse identity action."],[3,"Criteria, evidence, versions and reviewer recorded."],[3,"Core high-risk use: filtering and evaluation."],[3,"Passport reuse only with consent and in date."],[2,"Integrity checks capture evidence, not emotion."],[3,"Stage changes only after approval."]],
+   interview:[[3,"Candidates told the interviewer is AI and what is evaluated."],[3,"Panel decides; recruiter locks panel."],[3,"Transcript-linked scores and plan versions logged."],[3,"Score agreement and speech errors checked by group."],[3,"Recording consent and retention limits."],[3,"No emotion or personality inference from face or voice."],[3,"Interview tools scoped to the session."]],
+   offer:[[2,"Candidate knows offer support uses automation."],[3,"Approver signs band, concessions and exceptions."],[3,"Every term change and approver logged."],[3,"Pay spread within band monitored across groups."],[2,"Offer data used only for the offer."],[3,"No willingness-to-pay read from tone or sentiment."],[3,"Send and sign only after approval."]],
+   sentinel:[[1,"Operates on workflows, not conversations."],[3,"Stop controls, and spend or criteria changes need a person."],[3,"Before and after state saved for every fix."],[2,"Monitors drift in outcomes over time."],[2,"Re-contact respects opt-outs."],[1,"No audio or video processed."],[3,"Fixes limited to approved playbooks."]]
+  };
+  const lbl={3:"Core",2:"Applies",1:"Not material"};
+  let h=`<colgroup><col class="first">${cols.map(()=>"<col>").join("")}</colgroup><thead><tr><th></th>${cols.map(c=>`<th>${c[0]}<small>${c[1]}</small></th>`).join("")}</tr></thead><tbody>`;
+  AG.forEach(a=>{h+=`<tr><td class="rh"><span class="tdot" style="background:${T[a.tier].c}"></span> ${a.stage}</td>`+M[a.id].map((v,j)=>`<td class="c c${v[0]}" tabindex="0" data-t="${a.stage}, ${cols[j][0]}: ${v[1]}">${lbl[v[0]]}</td>`).join("")+`</tr>`;});
+  const tb=document.getElementById("heat");tb.innerHTML=h+"</tbody>";
+  const tip=document.getElementById("heatTip");
+  tb.querySelectorAll("td.c").forEach(td=>{const f=()=>tip.textContent=td.dataset.t;td.addEventListener("mouseenter",f);td.addEventListener("focus",f);td.addEventListener("click",f);});
+})();
+
+/* Chapter nav highlight */
+const links=[...document.querySelectorAll("#chap a")];
+const secs=links.map(a=>document.querySelector(a.getAttribute("href")));
+const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.toggle("on",l.getAttribute("href")==="#"+e.target.id));}})},{rootMargin:"-40% 0px -55% 0px"});
+secs.forEach(s=>io.observe(s));
+
+/* Present mode */
+const pb=document.getElementById("present");
+const order=[document.getElementById("top"),...secs];
+function curIdx(){let best=0,bd=1e9;order.forEach((s,i)=>{const d=Math.abs(s.getBoundingClientRect().top-60);if(d<bd){bd=d;best=i}});return best;}
+pb.onclick=()=>{const on=!document.body.classList.contains("present");document.body.classList.toggle("present",on);pb.setAttribute("aria-pressed",on);pb.textContent=on?"Exit presenting":"Present";if(on){order[curIdx()].scrollIntoView();}};
+document.addEventListener("keydown",e=>{
+  if(!document.body.classList.contains("present"))return;
+  if(e.key==="Escape"){pb.click();return;}
+  if(["ArrowDown","ArrowRight","PageDown"," "].includes(e.key)){e.preventDefault();const i=Math.min(curIdx()+1,order.length-1);order[i].scrollIntoView();}
+  if(["ArrowUp","ArrowLeft","PageUp"].includes(e.key)){e.preventDefault();const i=Math.max(curIdx()-1,0);order[i].scrollIntoView();}
+});
+</script>
+</body>
+</html>
